@@ -81,7 +81,19 @@ public class LoadTestApplication {
                     default -> throw new IllegalArgumentException("Unknown option: " + key);
                 }
             }
+            options.validateReportPaths();
             return options;
+        }
+
+        private void validateReportPaths() {
+            if (samePath(json, csv) || samePath(json, html) || samePath(csv, html)) {
+                throw new IllegalArgumentException("JSON, CSV, and HTML report paths must be different");
+            }
+        }
+
+        private static boolean samePath(Path left, Path right) {
+            return left != null && right != null
+                    && left.toAbsolutePath().normalize().equals(right.toAbsolutePath().normalize());
         }
 
         private static int parsePositiveInt(String value, String key) {
