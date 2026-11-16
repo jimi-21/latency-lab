@@ -1,5 +1,7 @@
 package dev.jimi.latency;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
@@ -32,7 +34,11 @@ class LoadTestApplicationTest {
             int exitCode = new LoadTestApplication().run(new String[]{"--url", url, "--requests", "10",
                     "--concurrency", "3", "--json", json.toString(), "--csv", csv.toString(), "--html", html.toString()});
             assertEquals(0, exitCode);
-            assertTrue(Files.readString(json).contains("\"successful\": 10"));
+            var report = new ObjectMapper()
+                    .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+                    .readTree(Files.readString(json));
+            assertEquals(10, report.get("successful").asInt());
+            assertEquals(10, report.get("statusCounts").get("200").asInt());
             assertEquals(11, Files.readAllLines(csv).size());
             assertTrue(Files.readString(html).contains("Performance report"));
         } finally {

@@ -53,7 +53,6 @@ public class ReportWriter {
             json.append("\"").append(escape(entry.getKey().toString())).append("\": ").append(entry.getValue());
             first = false;
         }
-        json.append("}");
     }
 
     private String field(String name, String value, boolean quoted) {
