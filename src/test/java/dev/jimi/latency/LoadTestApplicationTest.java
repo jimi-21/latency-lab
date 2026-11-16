@@ -6,6 +6,7 @@ import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -41,6 +42,32 @@ class LoadTestApplicationTest {
             assertEquals(10, report.get("statusCounts").get("200").asInt());
             assertEquals(11, Files.readAllLines(csv).size());
             assertTrue(Files.readString(html).contains("Performance report"));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void rejectsSharedReportPathsBeforeSendingRequests() throws Exception {
+        AtomicInteger requestCount = new AtomicInteger();
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/test", exchange -> {
+            requestCount.incrementAndGet();
+            exchange.sendResponseHeaders(200, 0);
+            exchange.close();
+        });
+        server.start();
+        try {
+            String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/test";
+            String[][] collisions = {{"--json", "--csv"}, {"--json", "--html"}, {"--csv", "--html"}};
+            for (String[] collision : collisions) {
+                Path output = tempDir.resolve(collision[0].substring(2) + ".out");
+                int exitCode = new LoadTestApplication().run(new String[]{"--url", url, "--requests", "1",
+                        collision[0], output.toString(), collision[1], output.toString()});
+                assertEquals(2, exitCode);
+                assertFalse(Files.exists(output));
+            }
+            assertEquals(0, requestCount.get());
         } finally {
             server.stop(0);
         }
